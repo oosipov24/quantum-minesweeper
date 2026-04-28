@@ -24,6 +24,14 @@ LEVELS = [
             [0.16, 0.18, 0.20, 0.22, 0.24, 0.28, 0.22, 0.00],
         ],
         "entangled_pairs": [((1, 2), (4, 5)), ((2, 6), (6, 3))],
+        "brief": (
+            "A damaged evacuation corridor cuts through the aid zone. "
+            "Civilian signals are unstable, and several tiles may collapse "
+            "into danger states when observed or crossed. Your task is to "
+            "scan the route, identify the safest path, and guide survivors "
+            "to the exit with minimum losses."
+            "Every inspection improves safety, but too many checks reduce public trust."
+        ),
     },
     {
         "name": "Level 2 — Metro Interference",
@@ -50,6 +58,13 @@ LEVELS = [
             [0.14, 0.18, 0.22, 0.26, 0.30, 0.34, 0.24, 0.00],
         ],
         "entangled_pairs": [((0, 5), (5, 1)), ((2, 2), (6, 6)), ((3, 4), (4, 7))],
+        "brief": (
+            "The route drops into an abandoned metro tunnel beneath the aid zone. "
+            "Emergency signals bounce between metal walls, creating false safety "
+            "readings across the grid. Quantum interference can distort nearby "
+            "danger values. Scan carefully, watch linked tiles, and guide the "
+            "survivors through before the signal fails."
+        ),
     },
     {
         "name": "Level 3 — Trust Collapse",
@@ -76,5 +91,11 @@ LEVELS = [
             [0.14, 0.18, 0.24, 0.28, 0.34, 0.38, 0.28, 0.00],
         ],
         "entangled_pairs": [((1, 1), (3, 5)), ((2, 6), (6, 2)), ((4, 1), (5, 6)), ((0, 6), (7, 1))],
+        "brief": (
+            "The evacuation network is close to losing public trust. Every wrong "
+            "step increases panic, and blind movement can collapse the mission "
+            "faster than danger itself. Safe paths still exist, but scans must be "
+            "used with discipline. Reach the exit before operational trust falls apart."
+        ),
     },
 ]
