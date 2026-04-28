@@ -53,6 +53,12 @@ class Game:
         self.f_card_l       = pygame.font.SysFont(mono,  11)               # Card label
         self.f_card_v       = pygame.font.SysFont(sans,  28, bold=True)    # Card value
 
+        self.player_sprite = self.load_player_sprite()
+        self.player_hurt_sprite = self.load_player_hurt_sprite()
+
+        self.damage_flash_until = 0
+        self.player_hurt_until = 0
+
         # Larger sidebar fonts for readability.
         self.f_side_h       = pygame.font.SysFont(mono,  13)               # Sidebar headings
         self.f_mode_l       = pygame.font.SysFont(mono,  15)               # Mode button label
@@ -75,6 +81,51 @@ class Game:
         self.hovered_cell = None
         self._tick        = 0
         self.reset_game(self.level_index)
+
+    def load_player_sprite(self):
+        sprite_sheet = pygame.image.load("assets/sprites/VillageMan1.png").convert_alpha()
+
+        frame_width = 24
+        frame_height = 24
+
+        # Standing/front-facing frame from the sprite sheet.
+        frame_rect = pygame.Rect(0, 0, frame_width, frame_height)
+        frame = sprite_sheet.subsurface(frame_rect).copy()
+        frame.set_colorkey((0, 0, 0))
+
+        player_size = 64
+        return pygame.transform.scale(frame, (player_size, player_size))
+    
+    def load_player_hurt_sprite(self):
+        sprite_sheet = pygame.image.load("assets/sprites/VillageMan1.png").convert_alpha()
+
+        frame_width = 24
+        frame_height = 24
+
+        # Lying/downed frame from the sprite sheet.
+        # If the wrong frame appears, change col/row values.
+        col = 3
+        row = 4
+
+        frame_rect = pygame.Rect(
+            col * frame_width,
+            row * frame_height,
+            frame_width,
+            frame_height
+        )
+
+        frame = sprite_sheet.subsurface(frame_rect).copy()
+        frame.set_colorkey((0, 0, 0))
+
+        player_size = 64
+        return pygame.transform.scale(frame, (player_size, player_size))
+    
+    def trigger_damage_effect(self):
+        now = pygame.time.get_ticks()
+
+        self.damage_flash_until = now + 1000
+        self.player_hurt_until = now + 1000
+
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
@@ -126,7 +177,13 @@ class Game:
             elif key in (pygame.K_RIGHT, pygame.K_d): tc += 1
             else: return
             if self.grid.in_bounds(tr, tc):
-                step_to_tile(self.state, self.grid, self.grid.get_tile(tr, tc))
+                casualties_before = self.state.casualties
+
+                target_tile = self.grid.get_tile(tr, tc)
+                step_to_tile(self.state, self.grid, target_tile)
+
+                if self.state.casualties > casualties_before:
+                    self.trigger_damage_effect()
 
     def handle_left_click(self, pos):
         if self.state.mode != "SCAN" or self.state.game_over:
@@ -157,8 +214,9 @@ class Game:
         self._draw_level_panel()
         self._draw_grid()
         self._draw_entanglement_links()
-        self._draw_player()
+        self.draw_player()
         self._draw_hint()
+        self._draw_damage_flash()
         self._draw_endgame()
         pygame.display.flip()
 
@@ -514,30 +572,39 @@ class Game:
             pygame.draw.line(self.screen, color, (int(x0),int(y0)), (int(x1),int(y1)), width)
             pos += dash + gap
 
+    def _draw_damage_flash(self):
+        now = pygame.time.get_ticks()
+
+        if now >= self.damage_flash_until:
+            return
+
+        remaining = self.damage_flash_until - now
+        alpha = int(120 * (remaining / 1000))
+
+        flash = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        flash.fill((255, 0, 0, alpha))
+
+        self.screen.blit(flash, (0, 0))
     # ── player ────────────────────────────────────────────────────────────────
 
-    def _draw_player(self):
+    def draw_player(self):
         row, col = self.state.player_pos
-        cx, cy   = self._tile_center(row, col)
-        r        = TILE_SIZE // 4
 
-        # animated pulse ring
-        pulse = math.sin(self._tick * 0.09) * 2
-        ring_r = int(r + 5 + pulse)
-        ring_s = pygame.Surface((ring_r*2+4, ring_r*2+4), pygame.SRCALPHA)
-        pygame.draw.circle(ring_s, (*PLAYER_COLOR[:3], 80),
-                           (ring_r+2, ring_r+2), ring_r, 2)
-        self.screen.blit(ring_s, (cx - ring_r - 2, cy - ring_r - 2))
+        center_x = GRID_OFFSET_X + col * TILE_SIZE + TILE_SIZE // 2
+        center_y = GRID_OFFSET_Y + row * TILE_SIZE + TILE_SIZE // 2
 
-        # glow layers
-        for i in range(4, 0, -1):
-            gr = r + i*3
-            gs = pygame.Surface((gr*2+2, gr*2+2), pygame.SRCALPHA)
-            pygame.draw.circle(gs, (*PLAYER_COLOR[:3], 18),
-                               (gr+1, gr+1), gr)
-            self.screen.blit(gs, (cx-gr-1, cy-gr-1))
+        sprite_y_offset = -8
 
-        pygame.draw.circle(self.screen, PLAYER_COLOR, (cx, cy), r)
+        now = pygame.time.get_ticks()
+
+        if now < self.player_hurt_until:
+            sprite = self.player_hurt_sprite
+            sprite_y_offset = -2
+        else:
+            sprite = self.player_sprite
+
+        sprite_rect = sprite.get_rect(center=(center_x, center_y + sprite_y_offset))
+        self.screen.blit(sprite, sprite_rect)
 
     # ── hint bar ──────────────────────────────────────────────────────────────
 
@@ -642,24 +709,3 @@ class Game:
                 lines.append(cur); cur = w
         lines.append(cur)
         return lines
-
-    # ── kept for compatibility with old call sites ────────────────────────────
-    def draw(self):
-        self.screen.fill(BG_COLOR)
-        self._draw_header()
-        self._draw_stat_cards()
-        self._draw_sidebar()
-        self._draw_level_panel()
-        self._draw_grid()
-        self._draw_entanglement_links()
-        self._draw_player()
-        self._draw_hint()
-        self._draw_endgame()
-        pygame.display.flip()
-
-    def draw_header(self):           self._draw_header()
-    def draw_grid(self):             self._draw_grid()
-    def draw_entanglement_links(self): self._draw_entanglement_links()
-    def draw_player(self):           self._draw_player()
-    def draw_side_panel(self):       self._draw_sidebar()
-    def draw_endgame_message(self):  self._draw_endgame()
